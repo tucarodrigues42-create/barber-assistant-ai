@@ -6,9 +6,9 @@ test('persistent FAQ, deduplication, AI failure and human ownership', async () =
   const db = new Map<string, string>(); let aiCalls = 0;
   process.env.UPSTASH_REDIS_REST_URL = 'https://redis.test';
   process.env.UPSTASH_REDIS_REST_TOKEN = 'test';
-  process.env.AI_API_KEY = 'test'; process.env.AI_MODEL = 'test';
+  process.env.GROQ_API_KEY = 'test'; process.env.GROQ_MODEL = 'openai/gpt-oss-20b';
   globalThis.fetch = async (input, options) => {
-    if (String(input).includes('api.openai.com')) { aiCalls++; return new Response('', { status: 503 }); }
+    if (String(input).includes('api.groq.com')) { aiCalls++; return new Response('', { status: 429 }); }
     const command = JSON.parse(String(options?.body));
     let result: unknown = null;
     const [op, key, value] = command;
