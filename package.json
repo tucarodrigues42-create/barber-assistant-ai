@@ -6,11 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --experimental-strip-types --test tests/*.test.ts"
   },
   "dependencies": {
     "next": "16.4.3",
-    "ollama": "^0.6.4",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },

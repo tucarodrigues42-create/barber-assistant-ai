@@ -20,7 +20,7 @@ export default function Home() {
     if (!mensagem || carregando) return;
 
     setMensagens((atual) => [
-      ...atual,
+      ...atual.slice(-39),
       { role: "user", content: mensagem },
     ]);
     setTexto("");
@@ -40,15 +40,15 @@ export default function Home() {
       }
 
       setMensagens((atual) => [
-        ...atual,
+        ...atual.slice(-39),
         { role: "assistant", content: dados.resposta },
       ]);
     } catch {
       setMensagens((atual) => [
-        ...atual,
+        ...atual.slice(-39),
         {
           role: "assistant",
-          content: "Erro ao conectar com a IA. Verifique o Ollama.",
+          content: "Atendimento temporariamente indisponível. Tente novamente em instantes.",
         },
       ]);
     } finally {
@@ -107,7 +107,7 @@ export default function Home() {
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
           placeholder="Digite sua mensagem..."
-          maxLength={4000}
+          maxLength={1200}
           className="min-w-0 flex-1 rounded-xl border border-white/20 bg-neutral-900 px-4 py-3 outline-none"
         />
         <button
@@ -121,3 +121,4 @@ export default function Home() {
     </main>
   );
 }
+
