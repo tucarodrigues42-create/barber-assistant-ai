@@ -1,55 +1,25 @@
-import { NextResponse } from "next/server";
-import ollama from "ollama";
+import { NextRequest, NextResponse } from 'next/server';
+import { createHmac, randomUUID } from 'node:crypto';
+import { equal, failure, readBody } from '../../../lib/http.ts';
+import { limited, respond } from '../../../lib/backend.ts';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const { mensagem } = await request.json();
-
-    if (
-      typeof mensagem !== "string" ||
-      !mensagem.trim() ||
-      mensagem.length > 4000
-    ) {
-      return NextResponse.json(
-        { erro: "Mensagem inválida" },
-        { status: 400 }
-      );
-    }
-
-    const resultado = await ollama.chat({
-      model: "qwen2.5:3b",
-      messages: [
-        {
-          role: "system",
-          content: `Você é o Barber Assistant AI.
-          Um assistente especializado em atendimento
-          para barbearias.
-
-          Responda sempre em português.
-          Seja profissional, educado e objetivo.
-          Ajude com dúvidas sobre serviços,
-          cortes, barbas e agendamentos.
-
-          Nunca invente preços, horários ou
-          disponibilidade de agendamento.`
-        },
-        {
-          role: "user",
-          content: mensagem
-        }
-      ]
-    });
-
-    return NextResponse.json({
-      resposta: resultado.message.content
-    });
-
-  } catch (error) {
-    console.error("Erro na IA:", error);
-
-    return NextResponse.json(
-      { erro: "Não foi possível consultar a IA." },
-      { status: 500 }
-    );
-  }
+    if (request.headers.get('origin') !== request.nextUrl.origin) return NextResponse.json({ erro: 'Origem inválida.' }, { status: 403 });
+    const secret = process.env.SESSION_SECRET;
+    if (!secret || secret.length < 32) throw new Error('CONFIG');
+    const ip = request.headers.get('x-vercel-forwarded-for') || 'local';
+    const ipHash = createHmac('sha256', secret).update(ip).digest('hex');
+    if (await limited(`ip:${ipHash}`, 30, 60)) throw new Error('RATE');
+    const data = JSON.parse(await readBody(request));
+    if (typeof data.mensagem !== 'string' || !data.mensagem.trim() || data.mensagem.length > 1200) throw new Error('INVALID');
+    const sign = (id: string) => createHmac('sha256', secret).update(id).digest('hex');
+    const [candidate = '', mac = ''] = (request.cookies.get('barber_session')?.value || '').split('.');
+    const id = /^[a-f0-9-]{36}$/.test(candidate) && equal(mac, sign(candidate)) ? candidate : randomUUID();
+    const result = await respond(`web:${id}`, data.mensagem.trim());
+    const response = NextResponse.json(result, { headers: { 'Cache-Control': 'no-store' } });
+    response.cookies.set('barber_session', `${id}.${sign(id)}`, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', path: '/', maxAge: 604800 });
+    return response;
+  } catch (error) { return failure(error); }
 }
+
